@@ -71,6 +71,7 @@ exports.getFloorOccupancy = async (req, res) => {
             partId: part._id,
             partName: part.name,
             area: part.area,
+            stock: part.stock,
           });
         }
       });
