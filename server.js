@@ -9,6 +9,7 @@ const connectDB = require("./config/db");
 connectDB();
 
 const itemRoutes = require("./routes/itemRoutes");
+const floorRoutes = require("./routes/floorRoutes");
 
 const app = express();
 
@@ -17,6 +18,7 @@ app.use(cors());
 app.use(express.json());
 
 app.use("/api/items", itemRoutes);
+app.use("/api/floors", floorRoutes);
 
 app.get("/", (req, res) => {
   res.send("Warehouse API Running");

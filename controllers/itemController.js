@@ -22,9 +22,11 @@ exports.createItem = async (req, res) => {
 // Get All Items
 exports.getItems = async (req, res) => {
   try {
-    const items = await Item.find().sort({
-      createdAt: -1,
-    });
+    const items = await Item.find()
+      .sort({
+        createdAt: -1,
+      })
+      .populate("parts.floorId");
 
     res.json(items);
   } catch (error) {
@@ -69,7 +71,7 @@ exports.searchItems = async (req, res) => {
           },
         },
       ],
-    });
+    }).populate("parts.floorId");
 
     res.json(items);
   } catch (error) {
@@ -79,11 +81,11 @@ exports.searchItems = async (req, res) => {
   }
 };
 
-// Update Part Stock
+// Update Part Stock and/or Location
 exports.updatePartStock = async (req, res) => {
   try {
     const { itemId, partId } = req.params;
-    const { field, change, location } = req.body;
+    const { field, change, floorId, area } = req.body;
 
     const item = await Item.findById(itemId);
 
@@ -101,10 +103,9 @@ exports.updatePartStock = async (req, res) => {
       });
     }
 
-    // Update location only
-    if (location !== undefined) {
-      part.location = location;
-    }
+    // Update location (floor + area) only
+    if (floorId !== undefined) part.floorId = floorId || null;
+    if (area !== undefined) part.area = area;
 
     // Allowed inventory fields
     const allowedFields = ["reserved", "damaged", "sold"];
@@ -142,8 +143,11 @@ exports.updatePartStock = async (req, res) => {
     }
 
     await item.save();
+    await item.populate("parts.floorId");
 
-    res.json(part);
+    const updatedPart = item.parts.id(partId);
+
+    res.json(updatedPart);
   } catch (error) {
     res.status(500).json({
       message: error.message,

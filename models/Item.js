@@ -1,8 +1,30 @@
 const mongoose = require("mongoose");
 
+const AreaSchema = new mongoose.Schema(
+  {
+    rowStart: Number,
+    rowEnd: Number,
+    colStart: Number,
+    colEnd: Number,
+  },
+  { _id: false },
+);
+
 const PartSchema = new mongoose.Schema({
   name: String,
-  location: String,
+
+  // Where this part physically sits: a floor + a rectangular area on it.
+  // Since the picker always produces a filled rectangle, 4 numbers fully
+  // describe the area — no array needed, no growth risk.
+  floorId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Floor",
+    default: null,
+  },
+  area: {
+    type: AreaSchema,
+    default: null,
+  },
 
   stock: {
     type: Number,
