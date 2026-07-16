@@ -60,6 +60,12 @@ const ItemSchema = new mongoose.Schema(
       required: true,
     },
 
+    color: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+
     parts: [PartSchema],
   },
   {

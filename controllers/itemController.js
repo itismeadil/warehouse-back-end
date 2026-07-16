@@ -3,11 +3,12 @@ const Item = require("../models/Item");
 // Create Item
 exports.createItem = async (req, res) => {
   try {
-    const { serialNumber, name, parts } = req.body;
+    const { serialNumber, name, color, parts } = req.body;
 
     const item = await Item.create({
       serialNumber,
       name,
+      color,
       parts,
     });
 
@@ -66,6 +67,12 @@ exports.searchItems = async (req, res) => {
         },
         {
           serialNumber: {
+            $regex: keyword,
+            $options: "i",
+          },
+        },
+        {
+          color: {
             $regex: keyword,
             $options: "i",
           },
