@@ -41,8 +41,6 @@ exports.getFloors = async (req, res) => {
   }
 };
 
-// Get a single floor plus which parts are placed on it (as rectangles, not
-// individual cells — the frontend expands each rectangle into dots itself).
 exports.getFloorOccupancy = async (req, res) => {
   try {
     const floor = await Floor.findById(req.params.id);
@@ -58,7 +56,7 @@ exports.getFloorOccupancy = async (req, res) => {
     const occupied = [];
 
     items.forEach((item) => {
-      item.parts.forEach((part) => {
+      item.parts.forEach((part, index) => {
         if (
           part.floorId &&
           part.floorId.toString() === floor._id.toString() &&
@@ -69,7 +67,7 @@ exports.getFloorOccupancy = async (req, res) => {
             itemName: item.name,
             serialNumber: item.serialNumber,
             partId: part._id,
-            partName: part.name,
+            partName: `${item.parts.length}/${index + 1}`,
             area: part.area,
             stock: part.stock,
           });

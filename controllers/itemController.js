@@ -169,3 +169,26 @@ exports.updatePartStock = async (req, res) => {
     });
   }
 };
+
+exports.addPart = async (req, res) => {
+  try {
+    const { itemId } = req.params;
+    const { floorId, area, stock } = req.body;
+
+    const item = await Item.findById(itemId);
+    if (!item) return res.status(404).json({ message: "Item not found" });
+
+    item.parts.push({
+      floorId: floorId || null,
+      area: area || null,
+      stock: parseInt(stock) || 0,
+    });
+
+    await item.save();
+    await item.populate("parts.floorId", "name");
+
+    res.status(201).json(item.parts[item.parts.length - 1]);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
