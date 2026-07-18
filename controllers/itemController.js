@@ -21,13 +21,16 @@ exports.createItem = async (req, res) => {
 };
 
 // Get All Items
+// Response shape UNCHANGED (still a plain array) — only perf fixes applied:
+// - .lean() removes Mongoose document overhead
+// - populate only pulls floor "name", not the whole Floor doc (which was
+//   dragging along the huge base64 "shape" field on every single item)
 exports.getItems = async (req, res) => {
   try {
     const items = await Item.find()
-      .sort({
-        createdAt: -1,
-      })
-      .populate("parts.floorId");
+      .sort({ createdAt: -1 })
+      .populate("parts.floorId", "name")
+      .lean();
 
     res.json(items);
   } catch (error) {
@@ -53,6 +56,7 @@ exports.deleteItem = async (req, res) => {
 };
 
 // Search
+// Response shape UNCHANGED — same perf fixes as getItems.
 exports.searchItems = async (req, res) => {
   try {
     const keyword = req.query.keyword;
@@ -78,7 +82,9 @@ exports.searchItems = async (req, res) => {
           },
         },
       ],
-    }).populate("parts.floorId");
+    })
+      .populate("parts.floorId", "name")
+      .lean();
 
     res.json(items);
   } catch (error) {
@@ -89,6 +95,8 @@ exports.searchItems = async (req, res) => {
 };
 
 // Update Part Stock and/or Location
+// Unchanged from your original — kept as a hydrated document since it needs
+// .id() and .save(), which .lean() docs don't support.
 exports.updatePartStock = async (req, res) => {
   try {
     const { itemId, partId } = req.params;
@@ -150,7 +158,7 @@ exports.updatePartStock = async (req, res) => {
     }
 
     await item.save();
-    await item.populate("parts.floorId");
+    await item.populate("parts.floorId", "name");
 
     const updatedPart = item.parts.id(partId);
 
