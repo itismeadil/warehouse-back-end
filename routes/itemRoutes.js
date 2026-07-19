@@ -29,4 +29,10 @@ router.patch(
 );
 router.delete("/:id", requireRole("admin", "manager"), deleteItem);
 
+router.get("/items/:id", requireRole("admin", "manager"), async (req, res) => {
+  const item = await Item.findById(req.params.id).populate("parts");
+  if (!item) return res.status(404).json({ message: "Item not found" });
+  res.json(item);
+});
+
 module.exports = router;
