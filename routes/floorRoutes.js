@@ -9,12 +9,14 @@ const {
   deleteFloor,
 } = require("../controllers/floorController");
 
-router.post("/", createFloor);
+const { requireAuth, requireRole } = require("../middleware/auth");
+
+router.use(requireAuth);
 
 router.get("/", getFloors);
-
 router.get("/:id/occupancy", getFloorOccupancy);
 
-router.delete("/:id", deleteFloor);
+router.post("/", requireRole("admin", "manager"), createFloor);
+router.delete("/:id", requireRole("admin", "manager"), deleteFloor);
 
 module.exports = router;

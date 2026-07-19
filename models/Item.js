@@ -66,6 +66,14 @@ const ItemSchema = new mongoose.Schema(
       trim: true,
     },
 
+    // Which supplier this item is assigned to, if any. Suppliers only ever
+    // see items where this matches their own account.
+    supplierId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
+
     parts: [PartSchema],
   },
   {

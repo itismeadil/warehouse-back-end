@@ -3,12 +3,13 @@ const Item = require("../models/Item");
 // Create Item
 exports.createItem = async (req, res) => {
   try {
-    const { serialNumber, name, color, parts } = req.body;
+    const { serialNumber, name, color, supplierId, parts } = req.body;
 
     const item = await Item.create({
       serialNumber,
       name,
       color,
+      supplierId: supplierId || null,
       parts,
     });
 
@@ -21,15 +22,20 @@ exports.createItem = async (req, res) => {
 };
 
 // Get All Items
-// Response shape UNCHANGED (still a plain array) — only perf fixes applied:
+// Response shape UNCHANGED (still a plain array) — perf fixes kept as-is:
 // - .lean() removes Mongoose document overhead
 // - populate only pulls floor "name", not the whole Floor doc (which was
 //   dragging along the huge base64 "shape" field on every single item)
+// Suppliers only ever get items assigned to them; admins get everything.
 exports.getItems = async (req, res) => {
   try {
-    const items = await Item.find()
+    const filter =
+      req.user.role === "supplier" ? { supplierId: req.user._id } : {};
+
+    const items = await Item.find(filter)
       .sort({ createdAt: -1 })
       .populate("parts.floorId", "name")
+      .populate("supplierId", "name email")
       .lean();
 
     res.json(items);
@@ -56,12 +62,13 @@ exports.deleteItem = async (req, res) => {
 };
 
 // Search
-// Response shape UNCHANGED — same perf fixes as getItems.
+// Response shape UNCHANGED — same perf fixes as getItems, same supplier
+// filtering.
 exports.searchItems = async (req, res) => {
   try {
     const keyword = req.query.keyword;
 
-    const items = await Item.find({
+    const filter = {
       $or: [
         {
           name: {
@@ -82,8 +89,15 @@ exports.searchItems = async (req, res) => {
           },
         },
       ],
-    })
+    };
+
+    if (req.user.role === "supplier") {
+      filter.supplierId = req.user._id;
+    }
+
+    const items = await Item.find(filter)
       .populate("parts.floorId", "name")
+      .populate("supplierId", "name email")
       .lean();
 
     res.json(items);
@@ -95,8 +109,9 @@ exports.searchItems = async (req, res) => {
 };
 
 // Update Part Stock and/or Location
-// Unchanged from your original — kept as a hydrated document since it needs
-// .id() and .save(), which .lean() docs don't support.
+// Unchanged from your version — kept as a hydrated document since it needs
+// .id() and .save(), which .lean() docs don't support. Admin-only, enforced
+// in the routes.
 exports.updatePartStock = async (req, res) => {
   try {
     const { itemId, partId } = req.params;
@@ -170,6 +185,7 @@ exports.updatePartStock = async (req, res) => {
   }
 };
 
+// Add a part to an existing item — admin-only, enforced in the routes.
 exports.addPart = async (req, res) => {
   try {
     const { itemId } = req.params;

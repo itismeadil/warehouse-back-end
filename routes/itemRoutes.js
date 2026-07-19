@@ -11,16 +11,22 @@ const {
   addPart,
 } = require("../controllers/itemController");
 
-router.post("/", createItem);
+const { requireAuth, requireRole } = require("../middleware/auth");
 
+router.use(requireAuth);
+
+// Reads: any authenticated user (filtered per role in the controller)
 router.get("/", getItems);
-
 router.get("/search", searchItems);
 
-router.patch("/:itemId/parts/:partId", updatePartStock);
-
-router.post("/:itemId/parts", addPart);
-
-router.delete("/:id", deleteItem);
+// Writes: admin or manager
+router.post("/", requireRole("admin", "manager"), createItem);
+router.post("/:itemId/parts", requireRole("admin", "manager"), addPart);
+router.patch(
+  "/:itemId/parts/:partId",
+  requireRole("admin", "manager"),
+  updatePartStock,
+);
+router.delete("/:id", requireRole("admin", "manager"), deleteItem);
 
 module.exports = router;
