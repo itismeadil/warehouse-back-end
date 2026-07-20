@@ -109,9 +109,6 @@ exports.searchItems = async (req, res) => {
 };
 
 // Update Part Stock and/or Location
-// Unchanged from your version — kept as a hydrated document since it needs
-// .id() and .save(), which .lean() docs don't support. Admin-only, enforced
-// in the routes.
 exports.updatePartStock = async (req, res) => {
   try {
     const { itemId, partId } = req.params;
@@ -167,6 +164,19 @@ exports.updatePartStock = async (req, res) => {
           });
         }
 
+        // Guard: don't let `damaged` drop below the number of photos
+        // already attached — remove photos first instead of silently
+        // losing the ability to see them.
+        if (field === "damaged") {
+          const newDamaged = part.damaged - 1;
+          if (newDamaged < part.photos.length) {
+            return res.status(400).json({
+              message:
+                "Remove some damage photos before reducing damaged count below the photo count",
+            });
+          }
+        }
+
         part[field] -= 1;
         part.stock += 1;
       }
@@ -179,6 +189,7 @@ exports.updatePartStock = async (req, res) => {
 
     res.json(updatedPart);
   } catch (error) {
+    console.error(error);
     res.status(500).json({
       message: error.message,
     });
@@ -205,6 +216,64 @@ exports.addPart = async (req, res) => {
 
     res.status(201).json(item.parts[item.parts.length - 1]);
   } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Upload one or more damage photos to a part — capped at part.damaged
+exports.uploadPartPhotos = async (req, res) => {
+  try {
+    const { itemId, partId } = req.params;
+
+    const item = await Item.findById(itemId);
+    if (!item) return res.status(404).json({ message: "Item not found" });
+
+    const part = item.parts.id(partId);
+    if (!part) return res.status(404).json({ message: "Part not found" });
+
+    const files = req.files || [];
+    if (files.length === 0) {
+      return res.status(400).json({ message: "No files uploaded" });
+    }
+
+    const remainingSlots = part.damaged - part.photos.length;
+    if (remainingSlots <= 0) {
+      return res.status(400).json({
+        message: `Photo limit reached (${part.damaged} max, tied to damaged count)`,
+      });
+    }
+
+    const accepted = files.slice(0, remainingSlots);
+    accepted.forEach((file) => {
+      part.photos.push({ url: file.path }); // file.path = Cloudinary URL
+    });
+
+    await item.save();
+
+    res.status(201).json(part);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Delete a single damage photo
+exports.deletePartPhoto = async (req, res) => {
+  try {
+    const { itemId, partId, photoId } = req.params;
+
+    const item = await Item.findById(itemId);
+    if (!item) return res.status(404).json({ message: "Item not found" });
+
+    const part = item.parts.id(partId);
+    if (!part) return res.status(404).json({ message: "Part not found" });
+
+    part.photos = part.photos.filter((p) => p._id.toString() !== photoId);
+    await item.save();
+
+    res.json(part);
+  } catch (error) {
+    console.error(error);
     res.status(500).json({ message: error.message });
   }
 };

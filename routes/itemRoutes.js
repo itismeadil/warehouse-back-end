@@ -12,6 +12,11 @@ const {
 } = require("../controllers/itemController");
 
 const { requireAuth, requireRole } = require("../middleware/auth");
+const upload = require("../config/upload");
+const {
+  uploadPartPhotos,
+  deletePartPhoto,
+} = require("../controllers/itemController");
 
 router.use(requireAuth);
 
@@ -27,6 +32,20 @@ router.patch(
   requireRole("admin", "manager"),
   updatePartStock,
 );
+
+router.post(
+  "/:itemId/parts/:partId/photos",
+  requireRole("admin", "manager"),
+  upload.array("photos", 20), // "photos" = form field name, 20 = hard upper cap per request
+  uploadPartPhotos,
+);
+
+router.delete(
+  "/:itemId/parts/:partId/photos/:photoId",
+  requireRole("admin", "manager"),
+  deletePartPhoto,
+);
+
 router.delete("/:id", requireRole("admin", "manager"), deleteItem);
 
 router.get("/items/:id", requireRole("admin", "manager"), async (req, res) => {

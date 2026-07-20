@@ -10,6 +10,22 @@ const AreaSchema = new mongoose.Schema(
   { _id: false },
 );
 
+// A single damage photo. Kept as its own schema (with _id) so each photo
+// can be individually deleted via its own id.
+const PhotoSchema = new mongoose.Schema(
+  {
+    url: {
+      type: String,
+      required: true,
+    },
+    uploadedAt: {
+      type: Date,
+      default: Date.now,
+    },
+  },
+  { _id: true },
+);
+
 const PartSchema = new mongoose.Schema({
   name: String,
 
@@ -44,6 +60,13 @@ const PartSchema = new mongoose.Schema({
   sold: {
     type: Number,
     default: 0,
+  },
+
+  // Damage evidence photos — capped at `damaged` (one photo per damaged
+  // unit, enforced in the controller, not here).
+  photos: {
+    type: [PhotoSchema],
+    default: [],
   },
 });
 
