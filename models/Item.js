@@ -18,6 +18,13 @@ const PhotoSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    // Cloudinary public_id — needed to actually delete the file from
+    // Cloudinary (not just from the DB). Optional so older photos that
+    // predate this field still work.
+    publicId: {
+      type: String,
+      default: null,
+    },
     uploadedAt: {
       type: Date,
       default: Date.now,
@@ -60,6 +67,14 @@ const PartSchema = new mongoose.Schema({
   sold: {
     type: Number,
     default: 0,
+  },
+
+  // Optional note about the damage, written by admin/manager and shown to
+  // the assigned supplier alongside the photos.
+  damageDescription: {
+    type: String,
+    default: "",
+    trim: true,
   },
 
   // Damage evidence photos — capped at `damaged` (one photo per damaged

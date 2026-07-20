@@ -1,4 +1,7 @@
 const Item = require("../models/Item");
+// Cloudinary is globally configured in config/upload.js (required by the
+// routes at startup), so we can safely use it here to delete assets.
+const cloudinary = require("cloudinary").v2;
 
 // Create Item
 exports.createItem = async (req, res) => {
@@ -108,11 +111,11 @@ exports.searchItems = async (req, res) => {
   }
 };
 
-// Update Part Stock and/or Location
+// Update Part Stock, Location, and/or Damage Description
 exports.updatePartStock = async (req, res) => {
   try {
     const { itemId, partId } = req.params;
-    const { field, change, floorId, area } = req.body;
+    const { field, change, floorId, area, damageDescription } = req.body;
 
     const item = await Item.findById(itemId);
 
@@ -133,6 +136,12 @@ exports.updatePartStock = async (req, res) => {
     // Update location (floor + area) only
     if (floorId !== undefined) part.floorId = floorId || null;
     if (area !== undefined) part.area = area;
+
+    // Update the damage note the supplier sees. Sent on its own or alongside
+    // a stock change — both work.
+    if (damageDescription !== undefined) {
+      part.damageDescription = damageDescription;
+    }
 
     // Allowed inventory fields
     const allowedFields = ["reserved", "damaged", "sold"];
@@ -245,7 +254,8 @@ exports.uploadPartPhotos = async (req, res) => {
 
     const accepted = files.slice(0, remainingSlots);
     accepted.forEach((file) => {
-      part.photos.push({ url: file.path }); // file.path = Cloudinary URL
+      // file.path = Cloudinary secure URL, file.filename = Cloudinary public_id
+      part.photos.push({ url: file.path, publicId: file.filename || null });
     });
 
     await item.save();
@@ -257,7 +267,7 @@ exports.uploadPartPhotos = async (req, res) => {
   }
 };
 
-// Delete a single damage photo
+// Delete a single damage photo — removes it from the DB and from Cloudinary.
 exports.deletePartPhoto = async (req, res) => {
   try {
     const { itemId, partId, photoId } = req.params;
@@ -267,6 +277,19 @@ exports.deletePartPhoto = async (req, res) => {
 
     const part = item.parts.id(partId);
     if (!part) return res.status(404).json({ message: "Part not found" });
+
+    const photo = part.photos.id(photoId);
+    if (!photo) return res.status(404).json({ message: "Photo not found" });
+
+    // Best-effort delete from Cloudinary; don't fail the request if the
+    // remote delete errors (the DB record is what the UI relies on).
+    if (photo.publicId) {
+      try {
+        await cloudinary.uploader.destroy(photo.publicId);
+      } catch (cloudErr) {
+        console.error("Cloudinary delete failed:", cloudErr.message);
+      }
+    }
 
     part.photos = part.photos.filter((p) => p._id.toString() !== photoId);
     await item.save();
