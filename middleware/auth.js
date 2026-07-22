@@ -3,10 +3,16 @@ const User = require("../models/User");
 
 const COOKIE_NAME = "token";
 
+// Cross-site cookies (frontend and backend on different domains, e.g.
+// vercel.app talking to onrender.com) require both of these:
+// - secure: true     -> cookie only sent over HTTPS
+// - sameSite: "none" -> allows the cookie to be sent on cross-site requests
+// "lax" silently blocks the cookie on cross-site XHR/fetch, which is why
+// login succeeded but every following request came back 401.
 const cookieOptions = {
   httpOnly: true,
-  secure: process.env.NODE_ENV === "production",
-  sameSite: "lax",
+  secure: true,
+  sameSite: "none",
   maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
 };
 
