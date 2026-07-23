@@ -1,6 +1,10 @@
 const bcrypt = require("bcryptjs");
 const User = require("../models/User");
-const { signToken, COOKIE_NAME, cookieOptions } = require("../middleware/auth");
+const {
+  signToken,
+  sendAuthToken,
+  clearAuthToken,
+} = require("../middleware/auth");
 
 const publicUser = (user) => ({
   id: user._id,
@@ -30,16 +34,14 @@ exports.login = async (req, res) => {
     }
 
     const token = signToken(user);
-    res.cookie(COOKIE_NAME, token, cookieOptions);
-
-    res.json(publicUser(user));
+    sendAuthToken(res, token, publicUser(user));
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
 
 exports.logout = (req, res) => {
-  res.clearCookie(COOKIE_NAME, cookieOptions);
+  clearAuthToken(res);
   res.json({ message: "Logged out" });
 };
 

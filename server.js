@@ -16,20 +16,27 @@ const userRoutes = require("./routes/userRoutes");
 
 const app = express();
 
-// credentials: true + an explicit origin (not "*") are both required for the
-// httpOnly auth cookie to be sent/received across origins in dev.
-
+// AUTH_MODE controls how the auth token is transported:
+// - "bearer" (default): token returned in JSON body, client sends it via
+//   Authorization header. No cookies involved, works without HTTPS/a real domain.
+// - "cookie": token sent via httpOnly cookie. Requires HTTPS in production
+//   (secure: true + sameSite: "none") and credentials: true on both CORS
+//   and the frontend's fetch/axios config.
+console.log("AUTH_MODE:", process.env.AUTH_MODE || "bearer (default)");
 console.log("CORS origin set to:", process.env.FRONTEND_URL);
 
 app.use(
   cors({
     origin: process.env.FRONTEND_URL,
-    credentials: true,
+    credentials: process.env.AUTH_MODE === "cookie",
   }),
 );
 
 app.use(express.json());
-app.use(cookieParser());
+
+if (process.env.AUTH_MODE === "cookie") {
+  app.use(cookieParser());
+}
 
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
