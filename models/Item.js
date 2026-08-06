@@ -33,6 +33,9 @@ const PhotoSchema = new mongoose.Schema(
   { _id: true },
 );
 
+// Parts no longer carry stock/reserved/sold — those are tracked once, at
+// the item level (see ItemSchema below). A part only tracks its own
+// damage (count + photos + description) and its physical location.
 const PartSchema = new mongoose.Schema({
   name: String,
 
@@ -49,22 +52,9 @@ const PartSchema = new mongoose.Schema({
     default: null,
   },
 
-  stock: {
-    type: Number,
-    default: 0,
-  },
-
-  reserved: {
-    type: Number,
-    default: 0,
-  },
-
+  // Independent of item.stock/reserved/sold — this is purely a count of
+  // how many units of THIS part are damaged.
   damaged: {
-    type: Number,
-    default: 0,
-  },
-
-  sold: {
     type: Number,
     default: 0,
   },
@@ -110,6 +100,24 @@ const ItemSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       default: null,
+    },
+
+    // Item-level inventory pool, shared across all parts. Only sold/reserved
+    // draw down `stock` — damaged is tracked separately per-part (see
+    // PartSchema.damaged) and never affects this number.
+    stock: {
+      type: Number,
+      default: 0,
+    },
+
+    reserved: {
+      type: Number,
+      default: 0,
+    },
+
+    sold: {
+      type: Number,
+      default: 0,
     },
 
     parts: [PartSchema],

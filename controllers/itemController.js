@@ -6,13 +6,25 @@ const cloudinary = require("cloudinary").v2;
 // Create Item
 exports.createItem = async (req, res) => {
   try {
-    const { serialNumber, name, color, supplierId, parts } = req.body;
+    const {
+      serialNumber,
+      name,
+      color,
+      supplierId,
+      stock,
+      reserved,
+      sold,
+      parts,
+    } = req.body;
 
     const item = await Item.create({
       serialNumber,
       name,
       color,
       supplierId: supplierId || null,
+      stock: stock || 0,
+      reserved: reserved || 0,
+      sold: sold || 0,
       parts,
     });
 
@@ -30,6 +42,8 @@ exports.createItem = async (req, res) => {
 // - populate only pulls floor "name", not the whole Floor doc (which was
 //   dragging along the huge base64 "shape" field on every single item)
 // Suppliers only ever get items assigned to them; admins get everything.
+// item.stock/reserved/sold ride along automatically since they're now
+// top-level fields on the Item doc.
 exports.getItems = async (req, res) => {
   try {
     const filter =
@@ -111,7 +125,10 @@ exports.searchItems = async (req, res) => {
   }
 };
 
-// Update Part Stock, Location, and/or Damage Description
+// Update Part: damaged count, location, and/or damage description.
+// Damaged is fully independent of stock now — marking a part damaged is
+// just a counter change on the part, it does NOT move any units in/out of
+// item.stock.
 exports.updatePartStock = async (req, res) => {
   try {
     const { itemId, partId } = req.params;
@@ -143,11 +160,8 @@ exports.updatePartStock = async (req, res) => {
       part.damageDescription = damageDescription;
     }
 
-    // Allowed inventory fields
-    const allowedFields = ["reserved", "damaged", "sold"];
-
     if (field) {
-      if (!allowedFields.includes(field)) {
+      if (field !== "damaged") {
         return res.status(400).json({
           message: "Invalid field",
         });
@@ -155,39 +169,29 @@ exports.updatePartStock = async (req, res) => {
 
       // Increase
       if (change > 0) {
-        if (part.stock <= 0) {
-          return res.status(400).json({
-            message: "No stock available",
-          });
-        }
-
-        part[field] += 1;
-        part.stock -= 1;
+        part.damaged += 1;
       }
 
       // Decrease
       if (change < 0) {
-        if (part[field] <= 0) {
+        if (part.damaged <= 0) {
           return res.status(400).json({
-            message: `${field} cannot go below zero`,
+            message: "damaged cannot go below zero",
           });
         }
 
         // Guard: don't let `damaged` drop below the number of photos
         // already attached — remove photos first instead of silently
         // losing the ability to see them.
-        if (field === "damaged") {
-          const newDamaged = part.damaged - 1;
-          if (newDamaged < part.photos.length) {
-            return res.status(400).json({
-              message:
-                "Remove some damage photos before reducing damaged count below the photo count",
-            });
-          }
+        const newDamaged = part.damaged - 1;
+        if (newDamaged < part.photos.length) {
+          return res.status(400).json({
+            message:
+              "Remove some damage photos before reducing damaged count below the photo count",
+          });
         }
 
-        part[field] -= 1;
-        part.stock += 1;
+        part.damaged -= 1;
       }
     }
 
@@ -206,10 +210,12 @@ exports.updatePartStock = async (req, res) => {
 };
 
 // Add a part to an existing item — admin-only, enforced in the routes.
+// Parts no longer carry a `stock` field, so it's dropped here; only
+// location is set on creation.
 exports.addPart = async (req, res) => {
   try {
     const { itemId } = req.params;
-    const { floorId, area, stock } = req.body;
+    const { floorId, area } = req.body;
 
     const item = await Item.findById(itemId);
     if (!item) return res.status(404).json({ message: "Item not found" });
@@ -217,7 +223,6 @@ exports.addPart = async (req, res) => {
     item.parts.push({
       floorId: floorId || null,
       area: area || null,
-      stock: parseInt(stock) || 0,
     });
 
     await item.save();

@@ -9,14 +9,12 @@ const {
   updatePartStock,
   searchItems,
   addPart,
+  uploadPartPhotos,
+  deletePartPhoto,
 } = require("../controllers/itemController");
 
 const { requireAuth, requireRole } = require("../middleware/auth");
 const upload = require("../config/upload");
-const {
-  uploadPartPhotos,
-  deletePartPhoto,
-} = require("../controllers/itemController");
 
 router.use(requireAuth);
 
@@ -27,6 +25,8 @@ router.get("/search", searchItems);
 // Writes: admin or manager
 router.post("/", requireRole("admin", "manager"), createItem);
 router.post("/:itemId/parts", requireRole("admin", "manager"), addPart);
+
+// Part-level: damaged count, location, damage description
 router.patch(
   "/:itemId/parts/:partId",
   requireRole("admin", "manager"),
@@ -47,11 +47,5 @@ router.delete(
 );
 
 router.delete("/:id", requireRole("admin", "manager"), deleteItem);
-
-router.get("/items/:id", requireRole("admin", "manager"), async (req, res) => {
-  const item = await Item.findById(req.params.id).populate("parts");
-  if (!item) return res.status(404).json({ message: "Item not found" });
-  res.json(item);
-});
 
 module.exports = router;

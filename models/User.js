@@ -18,10 +18,13 @@ const UserSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
-    // manager: same access as admin, except they can't see/reach Manage Users.
+    // manager: same access as admin, except they can't see/reach Manage Users
+    // or Accounting.
+    // accountant: can see Accounting (and general item/floor access like
+    // manager), but not Manage Users.
     role: {
       type: String,
-      enum: ["admin", "manager", "supplier"],
+      enum: ["admin", "manager", "accountant", "supplier"],
       required: true,
     },
   },
