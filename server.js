@@ -13,6 +13,7 @@ const itemRoutes = require("./routes/itemRoutes");
 const floorRoutes = require("./routes/floorRoutes");
 const authRoutes = require("./routes/authRoutes");
 const userRoutes = require("./routes/userRoutes");
+const notificationRoutes = require("./routes/notificationRoutes");
 
 const app = express();
 
@@ -42,6 +43,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/items", itemRoutes);
 app.use("/api/floors", floorRoutes);
+app.use("/api/notifications", notificationRoutes);
 
 app.get("/", (req, res) => {
   res.send("Warehouse API Running");

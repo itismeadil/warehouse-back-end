@@ -27,15 +27,16 @@ router.post("/", requireRole("admin", "manager"), createItem);
 router.post("/:itemId/parts", requireRole("admin", "manager"), addPart);
 
 // Part-level: damaged count, location, damage description
+// Workers can update damaged count and damage description, but not location
 router.patch(
   "/:itemId/parts/:partId",
-  requireRole("admin", "manager"),
+  requireRole("admin", "manager", "worker"),
   updatePartStock,
 );
 
 router.post(
   "/:itemId/parts/:partId/photos",
-  requireRole("admin", "manager"),
+  requireRole("admin", "manager", "worker"),
   upload.array("photos", 20), // "photos" = form field name, 20 = hard upper cap per request
   uploadPartPhotos,
 );

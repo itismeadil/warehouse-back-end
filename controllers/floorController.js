@@ -69,7 +69,7 @@ exports.getFloorOccupancy = async (req, res) => {
             partId: part._id,
             partName: `${item.parts.length}/${index + 1}`,
             area: part.area,
-            stock: part.stock,
+            stock: item.stock,
           });
         }
       });

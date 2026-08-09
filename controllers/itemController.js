@@ -129,6 +129,7 @@ exports.searchItems = async (req, res) => {
 // Damaged is fully independent of stock now — marking a part damaged is
 // just a counter change on the part, it does NOT move any units in/out of
 // item.stock.
+// Workers can only update damaged count and damage description, not location.
 exports.updatePartStock = async (req, res) => {
   try {
     const { itemId, partId } = req.params;
@@ -150,7 +151,14 @@ exports.updatePartStock = async (req, res) => {
       });
     }
 
-    // Update location (floor + area) only
+    // Workers cannot update location - they must request location changes
+    if (req.user.role === "worker" && (floorId !== undefined || area !== undefined)) {
+      return res.status(403).json({
+        message: "Workers cannot update location directly. Use location change request instead.",
+      });
+    }
+
+    // Update location (floor + area) only - admin/manager only
     if (floorId !== undefined) part.floorId = floorId || null;
     if (area !== undefined) part.area = area;
 
@@ -167,8 +175,26 @@ exports.updatePartStock = async (req, res) => {
         });
       }
 
+      // Calculate total damaged across all parts
+      const totalDamaged = item.parts.reduce((sum, p) => sum + (p.damaged || 0), 0);
+      // Check against raw stock value
+      const availableForDamage = (item.stock || 0) - totalDamaged;
+
       // Increase
       if (change > 0) {
+        // Validate that we have available units to mark as damaged
+        if (availableForDamage < 1) {
+          return res.status(400).json({
+            message: `Cannot mark more units as damaged. Only ${availableForDamage} units available. Stock: ${item.stock}, already damaged: ${totalDamaged}`,
+            availableForDamage,
+            totalDamaged,
+            stockBreakdown: {
+              total: item.stock,
+              damaged: totalDamaged
+            }
+          });
+        }
+        
         part.damaged += 1;
       }
 

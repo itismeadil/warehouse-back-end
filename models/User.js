@@ -22,9 +22,10 @@ const UserSchema = new mongoose.Schema(
     // or Accounting.
     // accountant: can see Accounting (and general item/floor access like
     // manager), but not Manage Users.
+    // worker: can view items, update damage rates, upload damage photos, and request location changes
     role: {
       type: String,
-      enum: ["admin", "manager", "accountant", "supplier"],
+      enum: ["admin", "manager", "accountant", "supplier", "worker"],
       required: true,
     },
   },
