@@ -63,6 +63,37 @@ exports.getItems = async (req, res) => {
   }
 };
 
+// Update Item
+exports.updateItem = async (req, res) => {
+  try {
+    const { serialNumber, name, color, supplierId, stock } = req.body;
+
+    const item = await Item.findById(req.params.id);
+
+    if (!item) {
+      return res.status(404).json({
+        message: "Item not found",
+      });
+    }
+
+    if (serialNumber !== undefined) item.serialNumber = serialNumber;
+    if (name !== undefined) item.name = name;
+    if (color !== undefined) item.color = color;
+    if (supplierId !== undefined) item.supplierId = supplierId || null;
+    if (stock !== undefined) item.stock = stock;
+
+    await item.save();
+    await item.populate("parts.floorId", "name");
+    await item.populate("supplierId", "name email");
+
+    res.json(item);
+  } catch (error) {
+    res.status(500).json({
+      message: error.message,
+    });
+  }
+};
+
 // Delete Item
 exports.deleteItem = async (req, res) => {
   try {
@@ -152,9 +183,13 @@ exports.updatePartStock = async (req, res) => {
     }
 
     // Workers cannot update location - they must request location changes
-    if (req.user.role === "worker" && (floorId !== undefined || area !== undefined)) {
+    if (
+      req.user.role === "worker" &&
+      (floorId !== undefined || area !== undefined)
+    ) {
       return res.status(403).json({
-        message: "Workers cannot update location directly. Use location change request instead.",
+        message:
+          "Workers cannot update location directly. Use location change request instead.",
       });
     }
 
@@ -176,7 +211,10 @@ exports.updatePartStock = async (req, res) => {
       }
 
       // Calculate total damaged across all parts
-      const totalDamaged = item.parts.reduce((sum, p) => sum + (p.damaged || 0), 0);
+      const totalDamaged = item.parts.reduce(
+        (sum, p) => sum + (p.damaged || 0),
+        0,
+      );
       // Check against raw stock value
       const availableForDamage = (item.stock || 0) - totalDamaged;
 
@@ -190,11 +228,11 @@ exports.updatePartStock = async (req, res) => {
             totalDamaged,
             stockBreakdown: {
               total: item.stock,
-              damaged: totalDamaged
-            }
+              damaged: totalDamaged,
+            },
           });
         }
-        
+
         part.damaged += 1;
       }
 

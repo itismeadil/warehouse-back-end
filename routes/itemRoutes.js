@@ -5,6 +5,7 @@ const router = express.Router();
 const {
   createItem,
   getItems,
+  updateItem,
   deleteItem,
   updatePartStock,
   searchItems,
@@ -24,6 +25,7 @@ router.get("/search", searchItems);
 
 // Writes: admin or manager
 router.post("/", requireRole("admin", "manager"), createItem);
+router.patch("/:id", requireRole("admin", "manager"), updateItem);
 router.post("/:itemId/parts", requireRole("admin", "manager"), addPart);
 
 // Part-level: damaged count, location, damage description
