@@ -161,10 +161,11 @@ exports.searchItems = async (req, res) => {
 // just a counter change on the part, it does NOT move any units in/out of
 // item.stock.
 // Workers can only update damaged count and damage description, not location.
+// Parts can have multiple areas.
 exports.updatePartStock = async (req, res) => {
   try {
     const { itemId, partId } = req.params;
-    const { field, change, floorId, area, damageDescription } = req.body;
+    const { field, change, floorId, areas, damageDescription } = req.body;
 
     const item = await Item.findById(itemId);
 
@@ -185,7 +186,7 @@ exports.updatePartStock = async (req, res) => {
     // Workers cannot update location - they must request location changes
     if (
       req.user.role === "worker" &&
-      (floorId !== undefined || area !== undefined)
+      (floorId !== undefined || areas !== undefined)
     ) {
       return res.status(403).json({
         message:
@@ -193,9 +194,9 @@ exports.updatePartStock = async (req, res) => {
       });
     }
 
-    // Update location (floor + area) only - admin/manager only
+    // Update location (floor + areas) only - admin/manager only
     if (floorId !== undefined) part.floorId = floorId || null;
-    if (area !== undefined) part.area = area;
+    if (areas !== undefined) part.areas = areas;
 
     // Update the damage note the supplier sees. Sent on its own or alongside
     // a stock change — both work.
@@ -275,18 +276,18 @@ exports.updatePartStock = async (req, res) => {
 
 // Add a part to an existing item — admin-only, enforced in the routes.
 // Parts no longer carry a `stock` field, so it's dropped here; only
-// location is set on creation.
+// location is set on creation. Parts can have multiple areas.
 exports.addPart = async (req, res) => {
   try {
     const { itemId } = req.params;
-    const { floorId, area } = req.body;
+    const { floorId, areas } = req.body;
 
     const item = await Item.findById(itemId);
     if (!item) return res.status(404).json({ message: "Item not found" });
 
     item.parts.push({
       floorId: floorId || null,
-      area: area || null,
+      areas: areas || [],
     });
 
     await item.save();

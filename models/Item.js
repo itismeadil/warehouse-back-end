@@ -39,17 +39,16 @@ const PhotoSchema = new mongoose.Schema(
 const PartSchema = new mongoose.Schema({
   name: String,
 
-  // Where this part physically sits: a floor + a rectangular area on it.
-  // Since the picker always produces a filled rectangle, 4 numbers fully
-  // describe the area — no array needed, no growth risk.
+  // Where this part physically sits: a floor + multiple rectangular areas on it.
+  // A part can be stored in multiple separate locations on the same floor.
   floorId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "Floor",
     default: null,
   },
-  area: {
-    type: AreaSchema,
-    default: null,
+  areas: {
+    type: [AreaSchema],
+    default: [],
   },
 
   // Independent of item.stock/reserved/sold — this is purely a count of

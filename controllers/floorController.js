@@ -57,19 +57,25 @@ exports.getFloorOccupancy = async (req, res) => {
 
     items.forEach((item) => {
       item.parts.forEach((part, index) => {
-        if (
-          part.floorId &&
-          part.floorId.toString() === floor._id.toString() &&
-          part.area
-        ) {
-          occupied.push({
-            itemId: item._id,
-            itemName: item.name,
-            serialNumber: item.serialNumber,
-            partId: part._id,
-            partName: `${item.parts.length}/${index + 1}`,
-            area: part.area,
-            stock: item.stock,
+        if (part.floorId && part.floorId.toString() === floor._id.toString()) {
+          // Handle multiple areas (new) or single area (backward compatibility)
+          const areas =
+            part.areas && part.areas.length > 0
+              ? part.areas
+              : part.area
+                ? [part.area]
+                : [];
+
+          areas.forEach((area) => {
+            occupied.push({
+              itemId: item._id,
+              itemName: item.name,
+              serialNumber: item.serialNumber,
+              partId: part._id,
+              partName: `${item.parts.length}/${index + 1}`,
+              area,
+              stock: item.stock,
+            });
           });
         }
       });
