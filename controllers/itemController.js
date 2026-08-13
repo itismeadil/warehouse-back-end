@@ -80,7 +80,23 @@ exports.updateItem = async (req, res) => {
     if (name !== undefined) item.name = name;
     if (color !== undefined) item.color = color;
     if (supplierId !== undefined) item.supplierId = supplierId || null;
+
+    const oldStock = item.stock;
     if (stock !== undefined) item.stock = stock;
+
+    // When stock reaches 0, remove locations from parts unless there are damaged parts
+    if (stock !== undefined && stock === 0 && oldStock > 0) {
+      // Check if any parts have damaged items
+      const hasDamagedParts = item.parts.some((part) => part.damaged > 0);
+
+      if (!hasDamagedParts) {
+        // Remove location info from all parts
+        item.parts.forEach((part) => {
+          part.floorId = null;
+          part.areas = [];
+        });
+      }
+    }
 
     await item.save();
     await item.populate("parts.floorId", "name");
