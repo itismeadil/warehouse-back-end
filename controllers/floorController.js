@@ -31,7 +31,9 @@ exports.createFloor = async (req, res) => {
 // Get All Floors
 exports.getFloors = async (req, res) => {
   try {
-    const floors = await Floor.find().sort({ createdAt: 1 });
+    const { includeDeleted } = req.query;
+    const query = includeDeleted === "true" ? {} : { deletedAt: null };
+    const floors = await Floor.find(query).sort({ createdAt: 1 });
 
     res.json(floors);
   } catch (error) {
@@ -89,13 +91,97 @@ exports.getFloorOccupancy = async (req, res) => {
   }
 };
 
-// Delete Floor
+// Delete Floor (soft delete)
 exports.deleteFloor = async (req, res) => {
   try {
+    const floor = await Floor.findById(req.params.id);
+
+    if (!floor) {
+      return res.status(404).json({
+        message: "Floor not found",
+      });
+    }
+
+    if (floor.deletedAt) {
+      return res.status(400).json({
+        message: "Floor is already deleted",
+      });
+    }
+
+    floor.deletedAt = new Date();
+    floor.deletedBy = req.user._id;
+    await floor.save();
+
+    res.json({
+      message:
+        "Floor deleted successfully. You can undo this action within 3 days.",
+      floor,
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: error.message,
+    });
+  }
+};
+
+// Restore Floor (undo delete)
+exports.restoreFloor = async (req, res) => {
+  try {
+    const floor = await Floor.findById(req.params.id);
+
+    if (!floor) {
+      return res.status(404).json({
+        message: "Floor not found",
+      });
+    }
+
+    if (!floor.deletedAt) {
+      return res.status(400).json({
+        message: "Floor is not deleted",
+      });
+    }
+
+    // Check if 3 days have passed
+    const threeDaysInMs = 3 * 24 * 60 * 60 * 1000;
+    const timeSinceDeletion = Date.now() - floor.deletedAt.getTime();
+
+    if (timeSinceDeletion > threeDaysInMs) {
+      return res.status(400).json({
+        message:
+          "Cannot restore floor. More than 3 days have passed since deletion.",
+      });
+    }
+
+    floor.deletedAt = null;
+    floor.deletedBy = null;
+    await floor.save();
+
+    res.json({
+      message: "Floor restored successfully",
+      floor,
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: error.message,
+    });
+  }
+};
+
+// Permanently delete floor (for cleanup job)
+exports.permanentlyDeleteFloor = async (req, res) => {
+  try {
+    const floor = await Floor.findById(req.params.id);
+
+    if (!floor) {
+      return res.status(404).json({
+        message: "Floor not found",
+      });
+    }
+
     await Floor.findByIdAndDelete(req.params.id);
 
     res.json({
-      message: "Floor deleted successfully",
+      message: "Floor permanently deleted",
     });
   } catch (error) {
     res.status(500).json({

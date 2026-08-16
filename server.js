@@ -6,6 +6,7 @@ const dotenv = require("dotenv");
 dotenv.config();
 
 const connectDB = require("./config/db");
+const Floor = require("./models/Floor");
 
 connectDB();
 
@@ -50,6 +51,29 @@ app.get("/", (req, res) => {
 });
 
 const PORT = process.env.PORT || 5000;
+
+// Cleanup job to permanently delete floors after 3 days
+const cleanupDeletedFloors = async () => {
+  try {
+    const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
+    const result = await Floor.deleteMany({
+      deletedAt: { $lt: threeDaysAgo },
+    });
+    if (result.deletedCount > 0) {
+      console.log(
+        `Cleanup: Permanently deleted ${result.deletedCount} floors older than 3 days`,
+      );
+    }
+  } catch (error) {
+    console.error("Cleanup job error:", error);
+  }
+};
+
+// Run cleanup job every hour
+setInterval(cleanupDeletedFloors, 60 * 60 * 1000);
+
+// Run cleanup once on server start
+cleanupDeletedFloors();
 
 app.listen(PORT, () => {
   console.log(`Server running on ${PORT}`);
