@@ -1,5 +1,6 @@
 const Floor = require("../models/Floor");
 const Item = require("../models/Item");
+const SharedPart = require("../models/SharedPart");
 
 // Create Floor
 exports.createFloor = async (req, res) => {
@@ -80,6 +81,36 @@ exports.getFloorOccupancy = async (req, res) => {
             });
           });
         }
+      });
+    });
+
+    // Shared parts (e.g. legs/top-holder that are physically identical
+    // across two or more color variants of the same item) occupy their
+    // space exactly ONCE, even though several items link to them — this is
+    // what prevents the same square being booked twice (once per color)
+    // for a part that only physically exists in one place.
+    const sharedParts = await SharedPart.find({ floorId: floor._id }).populate(
+      "items",
+      "name serialNumber color",
+    );
+
+    sharedParts.forEach((sharedPart) => {
+      const areas = sharedPart.areas || [];
+      const linkedItems = sharedPart.items || [];
+      const itemNames = linkedItems
+        .map((i) => `${i.name} (${i.color})`)
+        .join(", ");
+
+      areas.forEach((area) => {
+        occupied.push({
+          sharedPartId: sharedPart._id,
+          itemName: sharedPart.name || "Shared part",
+          serialNumber: null,
+          partName: `Shared${itemNames ? ` — used by ${itemNames}` : ""}`,
+          area,
+          stock: null,
+          linkedItemIds: linkedItems.map((i) => i._id),
+        });
       });
     });
 

@@ -1,7 +1,31 @@
 const Item = require("../models/Item");
+const SharedPart = require("../models/SharedPart");
+const { withComputedStock } = require("./sharedPartController");
 // Cloudinary is globally configured in config/upload.js (required by the
 // routes at startup), so we can safely use it here to delete assets.
 const cloudinary = require("cloudinary").v2;
+
+// Attaches `sharedParts` to each item — parts that are physically the same
+// across two or more items (e.g. a table's legs, identical whether the top
+// is silver or gold) and therefore live in their own SharedPart collection
+// instead of being duplicated inside item.parts. Each item just sees the
+// shared parts it's linked to, same as it sees its own `parts`.
+const attachSharedParts = async (items) => {
+  if (items.length === 0) return items;
+
+  const itemIds = items.map((i) => i._id);
+  const sharedParts = await SharedPart.find({ items: { $in: itemIds } })
+    .populate("floorId", "name")
+    .lean();
+  const withStock = await withComputedStock(sharedParts);
+
+  return items.map((item) => ({
+    ...item,
+    sharedParts: withStock.filter((sp) =>
+      sp.items.some((id) => id.toString() === item._id.toString()),
+    ),
+  }));
+};
 
 // Create Item
 exports.createItem = async (req, res) => {
@@ -55,7 +79,7 @@ exports.getItems = async (req, res) => {
       .populate("supplierId", "name email")
       .lean();
 
-    res.json(items);
+    res.json(await attachSharedParts(items));
   } catch (error) {
     res.status(500).json({
       message: error.message,
@@ -115,6 +139,16 @@ exports.deleteItem = async (req, res) => {
   try {
     await Item.findByIdAndDelete(req.params.id);
 
+    // Unlink this item from any shared parts it was using (e.g. the gold
+    // variant's shared legs). If that leaves a shared part with no items
+    // linked to it at all, it's just an orphaned location now — delete it
+    // rather than leave dead data around.
+    await SharedPart.updateMany(
+      { items: req.params.id },
+      { $pull: { items: req.params.id } },
+    );
+    await SharedPart.deleteMany({ items: { $size: 0 } });
+
     res.json({
       message: "Item deleted successfully",
     });
@@ -164,7 +198,7 @@ exports.searchItems = async (req, res) => {
       .populate("supplierId", "name email")
       .lean();
 
-    res.json(items);
+    res.json(await attachSharedParts(items));
   } catch (error) {
     res.status(500).json({
       message: error.message,
